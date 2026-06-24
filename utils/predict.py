@@ -104,7 +104,7 @@ def draw_status(img, text, status_type, conf=None):
     if conf is not None:
         cv2.putText(
             img,
-            f"Confidence: {conf:.2f}",
+            f"Confidence: {conf * 100:.1f}%",
             (x1 + 20, y1 + 58),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,

@@ -110,6 +110,29 @@ st.markdown("""
         font-weight: 700 !important;
         color: #F8FAFC !important;
     }
+    
+    /* Drag & Drop Upload Area */
+            
+    [data-testid="stFileUploader"] {
+        background: #111827;
+        border: 2px dashed #FACC15;
+        border-radius: 16px;
+        padding: 20px;
+    }
+
+    [data-testid="stFileUploader"]:hover {
+        border-color: #EAB308;
+        background: #1F2937;
+    }
+
+    [data-testid="stFileUploaderDropzone"] {
+        background: transparent;
+        border: none;
+    }
+
+    [data-testid="stFileUploaderDropzoneInstructions"] {
+        color: #F8FAFC;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,10 +151,27 @@ st.markdown("""
 # ==================================================
 with st.sidebar:
     st.markdown("### ⚙️ Control Panel")
+    st.markdown("""
+    <div style="
+        padding:15px;
+        border-radius:12px;
+        background:#111827;
+        border:1px solid #374151;
+        margin-bottom:10px;
+    ">
+        <h4 style="margin:0;color:#FACC15;">
+            📤 Upload / Drag & Drop Gambar
+        </h4>
+        <p style="margin:5px 0 0 0;color:#94A3B8;">
+            Seret gambar mangga ke area di bawah atau klik Browse files.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     uploaded = st.file_uploader(
-        "Upload Gambar Mangga",
+        "",
         type=["jpg", "jpeg", "png"],
-        help="Mendukung format JPG, JPEG, dan PNG."
+        label_visibility="collapsed"
     )
     
     st.markdown("---")
