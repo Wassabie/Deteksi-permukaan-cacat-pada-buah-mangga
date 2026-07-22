@@ -1,370 +1,917 @@
+import html
+
+import pandas as pd
 import streamlit as st
 from PIL import Image
-import pandas as pd
-import matplotlib.pyplot as plt
 
 from utils.predict import detect_mango
+
 
 # ==================================================
 # PAGE CONFIG
 # ==================================================
 st.set_page_config(
-    page_title="Mango Defect Detection",
+    page_title="MangoVision AI",
     page_icon="🥭",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
+
 
 # ==================================================
 # MODERN CUSTOM CSS
 # ==================================================
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    
-    /* Global Typography & Background */
-    .stApp {
-        background-color: #0B0F19;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-    
-    /* Header Styles */
-    .header-container {
-        text-align: center;
-        padding: 2rem 0 3rem 0;
-    }
-    .main-title {
-        font-size: 46px;
-        font-weight: 800;
-        background: linear-gradient(135deg, #FACC15 0%, #F59E0B 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-    .subtitle {
-        color: #94A3B8;
-        font-size: 18px;
-        font-weight: 400;
-    }
-    
-    /* Custom Status Cards */
-    .custom-card {
-        background: #111827;
-        border: 1px solid #1F2937;
-        border-radius: 16px;
-        padding: 1.5rem;
-        text-align: center;
-        transition: transform 0.2s, border-color 0.2s;
-    }
-    .custom-card:hover {
-        border-color: #374151;
-        transform: translateY(-2px);
-    }
-    .card-val {
-        font-size: 32px;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-    }
-    .card-lbl {
-        color: #94A3B8;
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 600;
-    }
-    .card-desc {
-        color: #F3F4F6;
-        font-size: 16px;
-        font-weight: 600;
-        margin-top: 0.5rem;
+st.markdown(
+    """
+    <style>
+        :root {
+            --bg: #070B14;
+            --panel: #0F1724;
+            --panel-soft: #121C2B;
+            --border: rgba(148, 163, 184, 0.16);
+            --text: #F8FAFC;
+            --muted: #94A3B8;
+            --yellow: #FACC15;
+            --orange: #F97316;
+            --green: #22C55E;
+            --red: #EF4444;
+            --blue: #38BDF8;
+            --purple: #A78BFA;
+        }
+
+        html, body, [class*="css"] {
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .stApp {
+            background:
+                radial-gradient(
+                    circle at 15% 10%,
+                    rgba(250, 204, 21, 0.08),
+                    transparent 27%
+                ),
+                radial-gradient(
+                    circle at 90% 5%,
+                    rgba(56, 189, 248, 0.07),
+                    transparent 25%
+                ),
+                var(--bg);
+            color: var(--text);
+        }
+
+        .block-container {
+            max-width: 1500px;
+            padding-top: 1.5rem;
+            padding-bottom: 3rem;
+        }
+
+        [data-testid="stSidebar"] {
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(15, 23, 36, 0.98),
+                    rgba(7, 11, 20, 0.98)
+                );
+            border-right: 1px solid var(--border);
+        }
+
+        [data-testid="stSidebar"] .block-container {
+            padding-top: 1.5rem;
+        }
+
+        /* Hero */
+        .hero {
+            position: relative;
+            overflow: hidden;
+            padding: 2rem 2.1rem;
+            margin-bottom: 1.7rem;
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(18, 28, 43, 0.94),
+                    rgba(10, 15, 27, 0.96)
+                );
+            box-shadow:
+                0 24px 70px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.025);
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            width: 320px;
+            height: 320px;
+            top: -210px;
+            right: -80px;
+            border-radius: 50%;
+            background: rgba(250, 204, 21, 0.12);
+            filter: blur(4px);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.42rem 0.8rem;
+            margin-bottom: 0.8rem;
+            border: 1px solid rgba(250, 204, 21, 0.22);
+            border-radius: 999px;
+            color: #FDE68A;
+            background: rgba(250, 204, 21, 0.08);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .hero-title {
+            position: relative;
+            z-index: 2;
+            margin: 0;
+            color: var(--text);
+            font-size: clamp(2rem, 4vw, 3.6rem);
+            font-weight: 850;
+            line-height: 1.05;
+            letter-spacing: -0.045em;
+        }
+
+        .hero-title span {
+            color: var(--yellow);
+        }
+
+        .hero-subtitle {
+            position: relative;
+            z-index: 2;
+            max-width: 760px;
+            margin-top: 0.85rem;
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .hero-chips {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            margin-top: 1.2rem;
+        }
+
+        .chip {
+            padding: 0.42rem 0.72rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: #CBD5E1;
+            background: rgba(15, 23, 42, 0.65);
+            font-size: 0.77rem;
+            font-weight: 650;
+        }
+
+        /* Generic panel */
+        .panel {
+            height: 100%;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18, 28, 43, 0.94),
+                    rgba(10, 15, 27, 0.95)
+                );
+            box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.85rem;
+            color: var(--text);
+            font-size: 1rem;
+            font-weight: 750;
+        }
+
+        .panel-tag {
+            padding: 0.3rem 0.55rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            background: rgba(2, 6, 23, 0.42);
+            font-size: 0.7rem;
+            font-weight: 650;
+        }
+
+        /* Result banner */
+        .result-banner {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.15rem 1.25rem;
+            margin: 1.1rem 0 1.25rem;
+            border: 1px solid var(--result-border);
+            border-radius: 18px;
+            background: var(--result-bg);
+            box-shadow: inset 4px 0 0 var(--result-color);
+        }
+
+        .result-icon {
+            display: grid;
+            width: 48px;
+            height: 48px;
+            flex: 0 0 48px;
+            place-items: center;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 1.45rem;
+        }
+
+        .result-heading {
+            margin: 0;
+            color: var(--result-color);
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .result-copy {
+            margin-top: 0.18rem;
+            color: #D7E0EC;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Metric cards */
+        .metric-card {
+            min-height: 135px;
+            padding: 1rem 1.05rem;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18, 28, 43, 0.95),
+                    rgba(11, 17, 29, 0.96)
+                );
+            box-shadow:
+                0 12px 30px rgba(0, 0, 0, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.025);
+        }
+
+        .metric-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+        }
+
+        .metric-icon {
+            display: grid;
+            width: 40px;
+            height: 40px;
+            place-items: center;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.055);
+            font-size: 1.05rem;
+        }
+
+        .metric-kicker {
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 750;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            overflow: hidden;
+            color: var(--text);
+            font-size: clamp(1rem, 2vw, 1.45rem);
+            font-weight: 800;
+            line-height: 1.25;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .metric-help {
+            margin-top: 0.25rem;
+            color: var(--muted);
+            font-size: 0.76rem;
+        }
+
+        /* Confidence block */
+        .confidence-panel {
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18, 28, 43, 0.94),
+                    rgba(10, 15, 27, 0.95)
+                );
+        }
+
+        .confidence-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .confidence-title {
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 750;
+        }
+
+        .confidence-number {
+            color: var(--confidence-color);
+            font-size: 1.75rem;
+            font-weight: 850;
+            letter-spacing: -0.035em;
+        }
+
+        .progress-track {
+            overflow: hidden;
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.14);
+        }
+
+        .progress-value {
+            width: var(--confidence-width);
+            height: 100%;
+            border-radius: inherit;
+            background:
+                linear-gradient(
+                    90deg,
+                    var(--confidence-color),
+                    color-mix(
+                        in srgb,
+                        var(--confidence-color) 72%,
+                        white
+                    )
+                );
+            box-shadow: 0 0 20px var(--confidence-shadow);
+        }
+
+        .confidence-note {
+            margin-top: 0.75rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.55;
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 4.5rem 1.5rem;
+            border: 1px dashed rgba(250, 204, 21, 0.32);
+            border-radius: 24px;
+            text-align: center;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(18, 28, 43, 0.58),
+                    rgba(10, 15, 27, 0.66)
+                );
+        }
+
+        .empty-icon {
+            margin-bottom: 0.9rem;
+            font-size: 3.2rem;
+        }
+
+        .empty-title {
+            color: var(--text);
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .empty-copy {
+            max-width: 520px;
+            margin: 0.45rem auto 0;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        /* Sidebar card */
+        .sidebar-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(18, 28, 43, 0.82);
+        }
+
+        .sidebar-card-title {
+            color: var(--yellow);
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .sidebar-card-copy {
+            margin-top: 0.35rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.55;
+        }
+
+        .model-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.7rem;
+            padding: 0.72rem 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .model-row:last-child {
+            border-bottom: none;
+        }
+
+        .model-key {
+            color: var(--muted);
+            font-size: 0.72rem;
+        }
+
+        .model-value {
+            color: var(--text);
+            font-size: 0.76rem;
+            font-weight: 750;
+            text-align: right;
+        }
+
+        /* Streamlit uploader */
+        [data-testid="stFileUploader"] {
+            padding: 0.35rem;
+            border: 1px dashed rgba(250, 204, 21, 0.34);
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.55);
+        }
+
+        [data-testid="stFileUploader"]:hover {
+            border-color: rgba(250, 204, 21, 0.7);
+            background: rgba(30, 41, 59, 0.58);
+        }
+
+        [data-testid="stFileUploaderDropzone"] {
+            border: none;
+            background: transparent;
+        }
+
+        [data-testid="stFileUploaderDropzoneInstructions"] {
+            color: var(--text);
+        }
+
+        /* Tabs */
+        button[data-baseweb="tab"] {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: var(--yellow);
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        hr {
+            border-color: rgba(148, 163, 184, 0.12) !important;
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                padding: 1.55rem;
+                border-radius: 20px;
+            }
+
+            .block-container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .metric-card {
+                min-height: auto;
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ==================================================
+# HELPER FUNCTIONS
+# ==================================================
+def get_result_theme(status: str) -> dict:
+    """Menentukan tema tampilan berdasarkan hasil prediksi."""
+
+    normalized = status.lower()
+
+    if "healthy" in normalized:
+        return {
+            "icon": "✓",
+            "label": "Healthy Mango",
+            "color": "#22C55E",
+            "border": "rgba(34, 197, 94, 0.32)",
+            "background": "rgba(34, 197, 94, 0.08)",
+            "message": (
+                "Model mengenali buah mangga dalam kondisi sehat. "
+                "Tidak ditemukan kelas cacat dengan confidence yang "
+                "melewati ambang deteksi."
+            ),
+        }
+
+    if "defect" in normalized:
+        return {
+            "icon": "!",
+            "label": "Defect Detected",
+            "color": "#F97316",
+            "border": "rgba(249, 115, 22, 0.34)",
+            "background": "rgba(249, 115, 22, 0.08)",
+            "message": (
+                "Model menemukan indikasi cacat permukaan pada buah "
+                "mangga. Periksa bounding box untuk melihat area yang "
+                "terdeteksi."
+            ),
+        }
+
+    return {
+        "icon": "×",
+        "label": "Not Mango",
+        "color": "#EF4444",
+        "border": "rgba(239, 68, 68, 0.34)",
+        "background": "rgba(239, 68, 68, 0.08)",
+        "message": (
+            "Gambar tidak lolos filter klasifikasi mangga atau nilai "
+            "confidence kelas mango berada di bawah ambang penerimaan."
+        ),
     }
 
-    /* Sidebar Styling */
-    [data-testid="stSidebar"] {
-        background-color: #0E131F;
-        border-right: 1px solid #1F2937;
-    }
-    
-    /* Streamlit Native Component Overrides for Dark Theme */
-    div[data-testid="stContainer"] {
-        border-radius: 16px !important;
-    }
-    
-    /* Buttons */
-    .stButton button {
-        background: linear-gradient(135deg, #FACC15 0%, #EAB308 100%) !important;
-        color: #020617 !important;
-        border-radius: 10px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.2s ease;
-    }
-    .stButton button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
-    }
-    
-    /* Headings */
-    h2, h3 {
-        font-weight: 700 !important;
-        color: #F8FAFC !important;
-    }
-    
-    /* Drag & Drop Upload Area */
-            
-    [data-testid="stFileUploader"] {
-        background: #111827;
-        border: 2px dashed #FACC15;
-        border-radius: 16px;
-        padding: 20px;
-    }
 
-    [data-testid="stFileUploader"]:hover {
-        border-color: #EAB308;
-        background: #1F2937;
-    }
+def render_image_panel(title: str, tag: str, image_data) -> None:
+    """Menampilkan gambar di dalam panel bergaya modern."""
 
-    [data-testid="stFileUploaderDropzone"] {
-        background: transparent;
-        border: none;
-    }
+    st.markdown(
+        f"""
+        <div class="panel-title">
+            <span>{html.escape(title)}</span>
+            <span class="panel-tag">{html.escape(tag)}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    [data-testid="stFileUploaderDropzoneInstructions"] {
-        color: #F8FAFC;
-    }
-</style>
-""", unsafe_allow_html=True)
+    st.image(image_data, use_container_width=True)
+
+
+def render_metric_card(
+    icon: str,
+    label: str,
+    value: str,
+    help_text: str,
+    accent: str,
+) -> None:
+    """Menampilkan kartu metrik."""
+
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-top">
+                <div class="metric-icon">{html.escape(icon)}</div>
+                <div class="metric-kicker">{html.escape(label)}</div>
+            </div>
+            <div class="metric-value" style="color:{accent};">
+                {html.escape(value)}
+            </div>
+            <div class="metric-help">
+                {html.escape(help_text)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 # ==================================================
 # HEADER
 # ==================================================
-st.markdown("""
-<div class="header-container">
-    <div class="main-title">🥭 Mango Defect Detection</div>
-    <div class="subtitle">Sistem Deteksi Cacat Permukaan Mangga Berbasis Deep Learning (YOLOv11)</div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <section class="hero">
+        <div class="hero-badge">Computer Vision Quality Control</div>
+        <h1 class="hero-title">
+            Mango<span>Vision</span> AI
+        </h1>
+        <div class="hero-subtitle">
+            Sistem dua tahap untuk memverifikasi buah mangga dan
+            mendeteksi cacat permukaan menggunakan YOLOv11.
+        </div>
+        <div class="hero-chips">
+            <span class="chip">🥭 Mango Classification</span>
+            <span class="chip">⌖ Defect Detection</span>
+            <span class="chip">⚡ Confidence Analysis</span>
+        </div>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ==================================================
 # SIDEBAR
 # ==================================================
 with st.sidebar:
-    st.markdown("### ⚙️ Control Panel")
-    st.markdown("""
-    <div style="
-        padding:15px;
-        border-radius:12px;
-        background:#111827;
-        border:1px solid #374151;
-        margin-bottom:10px;
-    ">
-        <h4 style="margin:0;color:#FACC15;">
-            📤 Upload / Drag & Drop Gambar
-        </h4>
-        <p style="margin:5px 0 0 0;color:#94A3B8;">
-            Seret gambar mangga ke area di bawah atau klik Browse files.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("## Control Center")
+
+    st.markdown(
+        """
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">
+                Unggah gambar pengujian
+            </div>
+            <div class="sidebar-card-copy">
+                Gunakan foto JPG, JPEG, atau PNG dengan objek terlihat
+                jelas dan pencahayaan yang cukup.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     uploaded = st.file_uploader(
-        "",
+        "Pilih gambar",
         type=["jpg", "jpeg", "png"],
-        label_visibility="collapsed"
+        label_visibility="collapsed",
     )
-    
+
     st.markdown("---")
-    st.markdown("### 📌 Informasi Model")
-    
-    # Menggunakan UI asli streamlit yang rapi untuk sidebar
-    st.caption("MODEL ARCHITECTURE")
-    st.text("YOLOv11 (Ultralytics)")
-    
-    st.caption("CORE TASK")
-    st.text("Object Detection & Quality Control")
-    
-    st.caption("TARGET CLASSES")
-    st.markdown("- `Healthy` (Kondisi Baik)\n- `Defect` (Cacat Permukaan)")
-    
-    st.markdown("---")
-    st.info("💡 **Petunjuk:** Pastikan pencahayaan gambar cukup terang untuk hasil deteksi yang optimal.")
+    st.markdown("### Informasi Sistem")
+
+    st.markdown(
+        """
+        <div class="sidebar-card">
+            <div class="model-row">
+                <span class="model-key">Tahap 1</span>
+                <span class="model-value">Mango Classification</span>
+            </div>
+            <div class="model-row">
+                <span class="model-key">Tahap 2</span>
+                <span class="model-value">Defect Detection</span>
+            </div>
+            <div class="model-row">
+                <span class="model-key">Arsitektur</span>
+                <span class="model-value">YOLOv11</span>
+            </div>
+            <div class="model-row">
+                <span class="model-key">Output</span>
+                <span class="model-value">Class + Confidence</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.info(
+        "Gunakan gambar yang tidak terlalu gelap, tidak buram, "
+        "dan menampilkan buah secara dominan."
+    )
+
 
 # ==================================================
-# DEFAULT VIEW (IF NO IMAGE)
+# DEFAULT VIEW
 # ==================================================
 if uploaded is None:
-    st.markdown("### 📥 Mulai Analisis")
-    with st.container(border=True):
-        st.markdown("""
-        <div style="text-align: center; padding: 3rem 1rem;">
-            <p style="font-size: 48px; margin-bottom: 1rem;">📸</p>
-            <h4 style="color: #F8FAFC; margin-bottom: 0.5rem;">Belum ada gambar yang diunggah</h4>
-            <p style="color: #64748B; max-width: 400px; margin: 0 auto;">
-                Silakan pilih atau seret gambar buah mangga ke area dropzone di panel sebelah kiri untuk memulai pemindaian AI.
-            </p>
+    st.markdown(
+        """
+        <div class="empty-state">
+            <div class="empty-icon">📷</div>
+            <div class="empty-title">Belum ada gambar untuk dianalisis</div>
+            <div class="empty-copy">
+                Unggah gambar melalui panel sebelah kiri. Sistem akan
+                memeriksa apakah gambar merupakan buah mangga, lalu
+                menjalankan deteksi kondisi permukaannya.
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
     st.stop()
+
 
 # ==================================================
 # IMAGE PROCESSING
 # ==================================================
-image = Image.open(uploaded)
+try:
+    image = Image.open(uploaded).convert("RGB")
+except Exception as error:
+    st.error(f"Gambar tidak dapat dibuka: {error}")
+    st.stop()
 
-with st.spinner("🔍 AI sedang menganalisis tekstur permukaan gambar..."):
-    # Memanggil fungsi deteksi Anda
-    result_img, status, conf, detected_class = detect_mango(image)
+with st.spinner("AI sedang memindai bentuk dan permukaan buah..."):
+    try:
+        result_img, status, conf, detected_class = detect_mango(image)
+    except Exception as error:
+        st.error(f"Proses deteksi gagal: {error}")
+        st.stop()
+
+
+# Batasi confidence agar aman untuk tampilan progress
+confidence = max(0.0, min(float(conf), 1.0))
+confidence_percent = confidence * 100
+
+theme = get_result_theme(status)
+
+safe_status = html.escape(str(status))
+safe_class = html.escape(str(detected_class))
+safe_theme_label = html.escape(theme["label"])
+safe_theme_message = html.escape(theme["message"])
+
 
 # ==================================================
-# IMAGE DISPLAY (SIDE-BY-SIDE)
+# IMAGE COMPARISON
 # ==================================================
-col1, col2 = st.columns(2, gap="large")
+st.markdown("## Hasil Pemindaian")
 
-with col1:
-    st.markdown("### 📤 Gambar Asli")
+col_original, col_result = st.columns(2, gap="large")
+
+with col_original:
     with st.container(border=True):
-        st.image(image, use_container_width=True)
-
-with col2:
-    st.markdown("### 🤖 Hasil Deteksi AI")
-    with st.container(border=True):
-        st.image(result_img, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ==================================================
-# STATUS RESULT & METRICS
-# ==================================================
-st.markdown("## 🧠 Ringkasan Analisis")
-
-# Menentukan warna & ikon berdasarkan status
-if "Healthy" in status:
-    status_icon = "🟢"
-    status_color = "#10B981"  # Emerald green
-    result_label = "Healthy"
-    alert_type = st.success
-    alert_msg = f"**Aman!** Buah mangga terdeteksi dalam kondisi sehat dan layak distribusi. ({status})"
-elif "Defect" in status:
-    status_icon = "🟠"
-    status_color = "#F97316"  # Orange
-    result_label = "Defect Detected"
-    alert_type = st.warning
-    alert_msg = f"**Perhatian!** Ditemukan cacat permukaan pada buah mangga dengan jenis: **{detected_class}**. ({status})"
-else:
-    status_icon = "🔴"
-    status_color = "#EF4444"  # Red
-    result_label = "Not Detected"
-    alert_type = st.error
-    alert_msg = f"**Gagal!** Objek mangga tidak dikenali atau di luar jangkauan deteksi model. ({status})"
-
-col_status, col_class, col_conf, col_task = st.columns(4, gap="medium")
-
-with col_status:
-    st.markdown(f"""
-    <div class="custom-card">
-        <div class="card-val" style="color: {status_color};">{status_icon}</div>
-        <div class="card-lbl">Status Deteksi</div>
-        <div class="card-desc" style="color: {status_color};">{result_label}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col_class:
-    st.markdown(f"""
-    <div class="custom-card">
-        <div class="card-val" style="color: #FACC15;">🥭</div>
-        <div class="card-lbl">Jenis Deteksi</div>
-        <div class="card-desc" style="color: #FACC15;">{detected_class}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col_conf:
-    st.markdown(f"""
-    <div class="custom-card">
-        <div class="card-val" style="color: #38BDF8;">{conf * 100:.1f}%</div>
-        <div class="card-lbl">Confidence Score</div>
-        <div class="card-desc" style="color: #38BDF8;">Tingkat Keyakinan</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col_task:
-    st.markdown("""
-    <div class="custom-card">
-        <div class="card-val" style="color: #A78BFA;">YOLOv11</div>
-        <div class="card-lbl">Model Arsitektur</div>
-        <div class="card-desc" style="color: #A78BFA;">Computer Vision</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Alert Status Bar
-st.markdown("<br>", unsafe_allow_html=True)
-alert_type(alert_msg)
-
-# ==================================================
-# DETAILED INTERACTION (TABS METHOD)
-# ==================================================
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("## 📊 Detail Data & Visualisasi")
-
-tab1, tab2 = st.tabs(["📈 Grafik Confidence", "📋 Tabulasi Data"])
-
-with tab1:
-    # Desain grafik yang jauh lebih bersih dan modern (Borderless & Flat)
-    fig, ax = plt.subplots(figsize=(10, 2))
-    fig.patch.set_facecolor("#0B0F19")
-    ax.set_facecolor("#0B0F19")
-
-    bars = ax.barh([status], [conf * 100], color=status_color, height=0.35)
-    
-    # Label value di dalam/ujung bar
-    for bar in bars:
-        width = bar.get_width()
-        ax.text(
-            width + 1.5,
-            bar.get_y() + bar.get_height() / 2,
-            f"{width:.2f}%",
-            va="center",
-            fontsize=11,
-            fontweight="bold",
-            color="#F8FAFC"
+        render_image_panel(
+            title="Gambar Asli",
+            tag="INPUT",
+            image_data=image,
         )
 
-    ax.set_xlim(0, 100)
-    
-    # Hilangkan seluruh border/spines box agar menyatu dengan background
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+with col_result:
+    with st.container(border=True):
+        render_image_panel(
+            title="Hasil Deteksi",
+            tag="OUTPUT",
+            image_data=result_img,
+        )
 
-    ax.tick_params(colors="#94A3B8", labelsize=11, bottom=False, left=False)
-    ax.xaxis.grid(True, linestyle=":", alpha=0.15, color="#94A3B8")
-    ax.set_axisbelow(True)
 
-    st.pyplot(fig)
-    
-    # Progress Bar bawaan streamlit yang minimalis
-    st.progress(float(conf))
-    st.caption("ℹ️ *Akurasi prediksi berbanding lurus dengan kualitas kedekatan objek dan pencahayaan studio.*")
+# ==================================================
+# RESULT BANNER
+# ==================================================
+st.markdown(
+    f"""
+    <div
+        class="result-banner"
+        style="
+            --result-color:{theme['color']};
+            --result-border:{theme['border']};
+            --result-bg:{theme['background']};
+        "
+    >
+        <div class="result-icon">{theme['icon']}</div>
+        <div>
+            <div class="result-heading">{safe_theme_label}</div>
+            <div class="result-copy">{safe_theme_message}</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-with tab2:
-    result_data = pd.DataFrame({
-    "Parameter": [
-        "Status Prediksi",
-        "Jenis Deteksi",
-        "Confidence Score",
-        "Engine Model",
-        "Tipe Tugas AI"
-    ],
-    "Value": [
-        status,
-        detected_class,
-        f"{conf * 100:.2f}%",
-        "YOLOv11 Framework",
-        "Object Detection"
-    ]
-})
-    
+
+# ==================================================
+# METRIC CARDS
+# ==================================================
+metric_col_1, metric_col_2, metric_col_3, metric_col_4 = st.columns(
+    4,
+    gap="medium",
+)
+
+with metric_col_1:
+    render_metric_card(
+        icon=theme["icon"],
+        label="Status",
+        value=theme["label"],
+        help_text="Hasil akhir sistem",
+        accent=theme["color"],
+    )
+
+with metric_col_2:
+    render_metric_card(
+        icon="⌁",
+        label="Kelas",
+        value=str(detected_class),
+        help_text="Kelas dengan confidence tertinggi",
+        accent="#FACC15",
+    )
+
+with metric_col_3:
+    render_metric_card(
+        icon="%",
+        label="Confidence",
+        value=f"{confidence_percent:.1f}%",
+        help_text="Keyakinan pada satu prediksi",
+        accent="#38BDF8",
+    )
+
+with metric_col_4:
+    render_metric_card(
+        icon="AI",
+        label="Model",
+        value="YOLOv11",
+        help_text="Classification + Detection",
+        accent="#A78BFA",
+    )
+
+
+# ==================================================
+# DETAILED ANALYSIS
+# ==================================================
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("## Detail Analisis")
+
+tab_summary, tab_data = st.tabs(
+    ["Confidence Overview", "Data Prediksi"]
+)
+
+with tab_summary:
+    st.markdown(
+        f"""
+        <div
+            class="confidence-panel"
+            style="
+                --confidence-color:{theme['color']};
+                --confidence-shadow:{theme['color']}55;
+                --confidence-width:{confidence_percent:.2f}%;
+            "
+        >
+            <div class="confidence-header">
+                <div>
+                    <div class="confidence-title">
+                        Confidence hasil prediksi
+                    </div>
+                </div>
+                <div class="confidence-number">
+                    {confidence_percent:.1f}%
+                </div>
+            </div>
+
+            <div class="progress-track">
+                <div class="progress-value"></div>
+            </div>
+
+            <div class="confidence-note">
+                Confidence menunjukkan tingkat keyakinan model pada
+                gambar ini, bukan akurasi keseluruhan model terhadap
+                seluruh dataset pengujian.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.caption(
+        "Status mentah dari fungsi prediksi: "
+        f"{safe_status}"
+    )
+
+with tab_data:
+    result_data = pd.DataFrame(
+        {
+            "Parameter": [
+                "Status sistem",
+                "Kelas hasil",
+                "Confidence",
+                "Model utama",
+                "Tahap pertama",
+                "Tahap kedua",
+            ],
+            "Nilai": [
+                str(status),
+                str(detected_class),
+                f"{confidence_percent:.2f}%",
+                "YOLOv11",
+                "Image Classification",
+                "Object Detection",
+            ],
+        }
+    )
+
     st.dataframe(
         result_data,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
     )
