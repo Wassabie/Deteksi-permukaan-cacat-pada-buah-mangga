@@ -1,8 +1,9 @@
 import html
+import math
 
 import pandas as pd
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageOps
 
 from utils.predict import detect_mango
 
@@ -11,7 +12,7 @@ from utils.predict import detect_mango
 # PAGE CONFIG
 # ==================================================
 st.set_page_config(
-    page_title="MangoVision AI",
+    page_title="MangoVision",
     page_icon="🥭",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -354,17 +355,9 @@ st.markdown(
             width: var(--confidence-width);
             height: 100%;
             border-radius: inherit;
-            background:
-                linear-gradient(
-                    90deg,
-                    var(--confidence-color),
-                    color-mix(
-                        in srgb,
-                        var(--confidence-color) 72%,
-                        white
-                    )
-                );
+            background: var(--confidence-color);
             box-shadow: 0 0 20px var(--confidence-shadow);
+            transition: width 0.35s ease;
         }
 
         .confidence-note {
@@ -519,13 +512,49 @@ st.markdown(
 # ==================================================
 # HELPER FUNCTIONS
 # ==================================================
-def get_result_theme(status: str) -> dict:
-    """Menentukan tema tampilan berdasarkan hasil prediksi."""
+def get_result_theme(status: object, detected_class: object) -> dict[str, str]:
+    """Menentukan tema berdasarkan status dan kelas hasil prediksi."""
 
-    normalized = status.lower()
+    normalized_status = str(status or "").strip().lower().replace("_", " ")
+    normalized_class = str(detected_class or "").strip().lower().replace("_", " ")
 
-    if "healthy" in normalized:
-        return {
+    not_mango_terms = (
+        "not mango",
+        "non mango",
+        "bukan mangga",
+        "tidak mangga",
+        "unknown",
+        "tidak terdeteksi",
+    )
+    healthy_terms = ("healthy", "sehat")
+    defect_terms = (
+        "defect",
+        "cacat",
+        "anthracnose",
+        "alternaria",
+        "stem and rot",
+        "stem end rot",
+        "black mould rot",
+        "black mold rot",
+    )
+
+    # Status negatif diperiksa lebih dahulu agar teks seperti
+    # "not healthy" tidak keliru dianggap sebagai mangga sehat.
+    if any(term in normalized_status for term in not_mango_terms):
+        result_key = "not_mango"
+    elif any(term in normalized_status for term in healthy_terms):
+        result_key = "healthy"
+    elif any(term in normalized_status for term in defect_terms):
+        result_key = "defect"
+    elif any(term in normalized_class for term in healthy_terms):
+        result_key = "healthy"
+    elif any(term in normalized_class for term in defect_terms):
+        result_key = "defect"
+    else:
+        result_key = "not_mango"
+
+    themes = {
+        "healthy": {
             "icon": "✓",
             "label": "Healthy Mango",
             "color": "#22C55E",
@@ -536,10 +565,8 @@ def get_result_theme(status: str) -> dict:
                 "Tidak ditemukan kelas cacat dengan confidence yang "
                 "melewati ambang deteksi."
             ),
-        }
-
-    if "defect" in normalized:
-        return {
+        },
+        "defect": {
             "icon": "!",
             "label": "Defect Detected",
             "color": "#F97316",
@@ -550,19 +577,39 @@ def get_result_theme(status: str) -> dict:
                 "mangga. Periksa bounding box untuk melihat area yang "
                 "terdeteksi."
             ),
-        }
-
-    return {
-        "icon": "×",
-        "label": "Not Mango",
-        "color": "#EF4444",
-        "border": "rgba(239, 68, 68, 0.34)",
-        "background": "rgba(239, 68, 68, 0.08)",
-        "message": (
-            "Gambar tidak lolos filter klasifikasi mangga atau nilai "
-            "confidence kelas mango berada di bawah ambang penerimaan."
-        ),
+        },
+        "not_mango": {
+            "icon": "×",
+            "label": "Not Mango",
+            "color": "#EF4444",
+            "border": "rgba(239, 68, 68, 0.34)",
+            "background": "rgba(239, 68, 68, 0.08)",
+            "message": (
+                "Gambar tidak dikenali sebagai buah mangga atau nilai "
+                "confidence berada di bawah ambang penerimaan."
+            ),
+        },
     }
+
+    return themes[result_key]
+
+
+def normalize_confidence(value: object) -> float:
+    """Mengubah confidence menjadi nilai aman pada rentang 0 sampai 1."""
+
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+    if not math.isfinite(confidence):
+        return 0.0
+
+    # Mendukung fungsi prediksi yang mengembalikan 85.5 maupun 0.855.
+    if 1.0 < confidence <= 100.0:
+        confidence /= 100.0
+
+    return max(0.0, min(confidence, 1.0))
 
 
 def render_image_panel(title: str, tag: str, image_data) -> None:
@@ -620,11 +667,10 @@ st.markdown(
             Mango<span>Vision</span> AI
         </h1>
         <div class="hero-subtitle">
-            Sistem dua tahap untuk memverifikasi buah mangga dan
-            mendeteksi cacat permukaan menggunakan YOLOv11.
+            Sistem berbasis YOLOv11 untuk mengidentifikasi kondisi
+            dan cacat permukaan buah mangga melalui citra digital.
         </div>
         <div class="hero-chips">
-            <span class="chip">🥭 Mango Classification</span>
             <span class="chip">⌖ Defect Detection</span>
             <span class="chip">⚡ Confidence Analysis</span>
         </div>
@@ -661,33 +707,6 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
-    st.markdown("---")
-    st.markdown("### Informasi Sistem")
-
-    st.markdown(
-        """
-        <div class="sidebar-card">
-            <div class="model-row">
-                <span class="model-key">Tahap 1</span>
-                <span class="model-value">Mango Classification</span>
-            </div>
-            <div class="model-row">
-                <span class="model-key">Tahap 2</span>
-                <span class="model-value">Defect Detection</span>
-            </div>
-            <div class="model-row">
-                <span class="model-key">Arsitektur</span>
-                <span class="model-value">YOLOv11</span>
-            </div>
-            <div class="model-row">
-                <span class="model-key">Output</span>
-                <span class="model-value">Class + Confidence</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     st.info(
         "Gunakan gambar yang tidak terlalu gelap, tidak buram, "
         "dan menampilkan buah secara dominan."
@@ -698,18 +717,20 @@ with st.sidebar:
 # DEFAULT VIEW
 # ==================================================
 if uploaded is None:
+    empty_state_html = (
+        '<div class="empty-state">'
+        '<div class="empty-icon">📷</div>'
+        '<div class="empty-title">Belum ada gambar untuk dianalisis</div>'
+        '<div class="empty-copy">'
+        'Unggah gambar melalui panel sebelah kiri. Sistem akan memeriksa '
+        'apakah gambar merupakan buah mangga, lalu menjalankan deteksi '
+        'kondisi permukaannya.'
+        '</div>'
+        '</div>'
+    )
+
     st.markdown(
-        """
-        <div class="empty-state">
-            <div class="empty-icon">📷</div>
-            <div class="empty-title">Belum ada gambar untuk dianalisis</div>
-            <div class="empty-copy">
-                Unggah gambar melalui panel sebelah kiri. Sistem akan
-                memeriksa apakah gambar merupakan buah mangga, lalu
-                menjalankan deteksi kondisi permukaannya.
-            </div>
-        </div>
-        """,
+        empty_state_html,
         unsafe_allow_html=True,
     )
     st.stop()
@@ -719,27 +740,39 @@ if uploaded is None:
 # IMAGE PROCESSING
 # ==================================================
 try:
-    image = Image.open(uploaded).convert("RGB")
+    uploaded.seek(0)
+    image = ImageOps.exif_transpose(Image.open(uploaded)).convert("RGB")
 except Exception as error:
     st.error(f"Gambar tidak dapat dibuka: {error}")
     st.stop()
 
 with st.spinner("AI sedang memindai bentuk dan permukaan buah..."):
     try:
-        result_img, status, conf, detected_class = detect_mango(image)
+        prediction = detect_mango(image)
+
+        if not isinstance(prediction, (tuple, list)) or len(prediction) != 4:
+            raise ValueError(
+                "detect_mango() harus mengembalikan empat nilai: "
+                "result_img, status, conf, dan detected_class."
+            )
+
+        result_img, status, conf, detected_class = prediction
     except Exception as error:
         st.error(f"Proses deteksi gagal: {error}")
         st.stop()
 
+if result_img is None:
+    result_img = image
 
-# Batasi confidence agar aman untuk tampilan progress
-confidence = max(0.0, min(float(conf), 1.0))
+status_text = str(status or "Tidak diketahui")
+class_text = str(detected_class or "Tidak terdeteksi")
+
+# Batasi confidence agar aman untuk tampilan progress.
+confidence = normalize_confidence(conf)
 confidence_percent = confidence * 100
 
-theme = get_result_theme(status)
+theme = get_result_theme(status_text, class_text)
 
-safe_status = html.escape(str(status))
-safe_class = html.escape(str(detected_class))
 safe_theme_label = html.escape(theme["label"])
 safe_theme_message = html.escape(theme["message"])
 
@@ -813,7 +846,7 @@ with metric_col_2:
     render_metric_card(
         icon="⌁",
         label="Kelas",
-        value=str(detected_class),
+        value=class_text,
         help_text="Kelas dengan confidence tertinggi",
         accent="#FACC15",
     )
@@ -832,7 +865,7 @@ with metric_col_4:
         icon="AI",
         label="Model",
         value="YOLOv11",
-        help_text="Classification + Detection",
+        help_text="Model deteksi yang digunakan",
         accent="#A78BFA",
     )
 
@@ -848,44 +881,33 @@ tab_summary, tab_data = st.tabs(
 )
 
 with tab_summary:
+    confidence_html = (
+        '<div class="confidence-panel" '
+        f'style="--confidence-color:{theme["color"]};'
+        f'--confidence-shadow:{theme["color"]}55;'
+        f'--confidence-width:{confidence_percent:.2f}%;">'
+        '<div class="confidence-header">'
+        '<div class="confidence-title">Confidence hasil prediksi</div>'
+        f'<div class="confidence-number">{confidence_percent:.1f}%</div>'
+        '</div>'
+        '<div class="progress-track">'
+        '<div class="progress-value"></div>'
+        '</div>'
+        '<div class="confidence-note">'
+        'Confidence menunjukkan tingkat keyakinan model pada gambar ini, '
+        'bukan akurasi keseluruhan model terhadap seluruh dataset pengujian.'
+        '</div>'
+        '</div>'
+    )
+
     st.markdown(
-        f"""
-        <div
-            class="confidence-panel"
-            style="
-                --confidence-color:{theme['color']};
-                --confidence-shadow:{theme['color']}55;
-                --confidence-width:{confidence_percent:.2f}%;
-            "
-        >
-            <div class="confidence-header">
-                <div>
-                    <div class="confidence-title">
-                        Confidence hasil prediksi
-                    </div>
-                </div>
-                <div class="confidence-number">
-                    {confidence_percent:.1f}%
-                </div>
-            </div>
-
-            <div class="progress-track">
-                <div class="progress-value"></div>
-            </div>
-
-            <div class="confidence-note">
-                Confidence menunjukkan tingkat keyakinan model pada
-                gambar ini, bukan akurasi keseluruhan model terhadap
-                seluruh dataset pengujian.
-            </div>
-        </div>
-        """,
+        confidence_html,
         unsafe_allow_html=True,
     )
 
     st.caption(
         "Status mentah dari fungsi prediksi: "
-        f"{safe_status}"
+        f"{status_text}"
     )
 
 with tab_data:
@@ -896,16 +918,12 @@ with tab_data:
                 "Kelas hasil",
                 "Confidence",
                 "Model utama",
-                "Tahap pertama",
-                "Tahap kedua",
             ],
             "Nilai": [
-                str(status),
-                str(detected_class),
+                status_text,
+                class_text,
                 f"{confidence_percent:.2f}%",
                 "YOLOv11",
-                "Image Classification",
-                "Object Detection",
             ],
         }
     )
