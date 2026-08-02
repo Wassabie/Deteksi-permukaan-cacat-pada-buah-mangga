@@ -1,0 +1,8 @@
+cd "C:\lokasi\folder\project"
+
+git init
+git add .
+git commit -m "Initial commit mango defect detection YOLOv11"
+git branch -M main
+git remote add origin https://github.com/USERNAME/NAMA-REPOSITORY.git
+git push -u origin main

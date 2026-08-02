@@ -1,8 +1,9 @@
-from ultralytics import YOLO
 import cv2
 import numpy as np
+from utils.model_service import load_models
 
 
+input_validator, defect_detector = load_models()
 # ==================================================
 # KONFIGURASI
 # ==================================================
@@ -25,14 +26,6 @@ HEALTHY_CLASS_NAMES = {
     "mango_healthy",
     "sehat"
 }
-
-
-# ==================================================
-# LOAD MODEL
-# ==================================================
-
-model_cls = YOLO("model/best_cls.pt")
-model_det = YOLO("model/best.pt")
 
 
 # ==================================================
@@ -409,10 +402,10 @@ def detect_mango(
     # STAGE 1: KLASIFIKASI MANGO / NON-MANGO
     # ==================================================
 
-    classification_results = model_cls.predict(
-        source=img_bgr,
-        imgsz=CLASSIFICATION_IMAGE_SIZE,
-        verbose=False
+    classification_results = input_validator.predict(
+    source=img_bgr,
+    imgsz=CLASSIFICATION_IMAGE_SIZE,
+    verbose=False
     )
 
     cls_result = classification_results[0]
@@ -483,7 +476,7 @@ def detect_mango(
         # STAGE 2: DETEKSI KONDISI MANGGA
         # ==================================================
 
-        detection_results = model_det.predict(
+        detection_results = defect_detector.predict(
             source=img_bgr,
             imgsz=DETECTION_IMAGE_SIZE,
             conf=defect_conf_threshold,
