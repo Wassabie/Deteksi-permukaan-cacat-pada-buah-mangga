@@ -664,7 +664,7 @@ st.markdown(
     <section class="hero">
         <div class="hero-badge">Computer Vision Quality Control</div>
         <h1 class="hero-title">
-            Mango<span>Vision</span> AI
+            Mango<span>Vision
         </h1>
         <div class="hero-subtitle">
             Sistem berbasis YOLOv11 untuk mengidentifikasi kondisi
